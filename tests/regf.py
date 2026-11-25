@@ -12,10 +12,18 @@ from tests import test_lib
 class FakePyREGFKey:
     """Fake pyregf key for testing."""
 
-    def __init__(self):
-        """Initializes a fake pyregf key."""
+    def __init__(self, corrupted=None):
+        """Initializes a fake pyregf key.
+
+        Args:
+          corrupted (Optional[bool]): value of the corrupted attribute, where None
+              indicates the attribute is not available.
+        """
         super().__init__()
         self.number_of_sub_keys = 1
+
+        if corrupted is not None:
+            self.corrupted = corrupted
 
     # pylint: disable=invalid-name,redundant-returns-doc,unused-argument
 
@@ -44,16 +52,21 @@ class FakePyREGFValue:
       type (str): value type.
     """
 
-    def __init__(self, name="Test", value_type="REG_SZ"):
+    def __init__(self, name="Test", value_type="REG_SZ", corrupted=None):
         """Initializes a fake pyregf value.
 
         Args:
           name (Optional[str]): name of the value.
           value_type (Optional[str]): value type.
+          corrupted (Optional[bool]): value of the corrupted attribute, where None
+              indicates the attribute is not available.
         """
         super().__init__()
         self.name = name
         self.type = value_type
+
+        if corrupted is not None:
+            self.corrupted = corrupted
 
     # pylint: disable=missing-raises-doc
 
@@ -114,6 +127,23 @@ class REGFWinRegistryFileTest(test_lib.BaseTestCase):
 
                 with self.assertRaises(ValueError):
                     registry_file.AddVirtualKey("\\VirtualKey", pyregf_key)
+
+            finally:
+                registry_file.Close()
+
+    def testIsCorrupted(self):
+        """Tests the is_corrupted property."""
+        registry_file = regf.REGFWinRegistryFile()
+        self.assertFalse(registry_file.is_corrupted)
+
+        test_path = self._GetTestFilePath(["SYSTEM"])
+        self._SkipIfPathNotExists(test_path)
+
+        with open(test_path, "rb") as file_object:
+            registry_file.Open(file_object)
+
+            try:
+                self.assertFalse(registry_file.is_corrupted)
 
             finally:
                 registry_file.Close()
@@ -316,6 +346,17 @@ class REGFWinRegistryKeyTest(test_lib.BaseTestCase):
 
             finally:
                 registry_file.Close()
+
+    def testIsCorrupted(self):
+        """Tests the is_corrupted property."""
+        registry_key = regf.REGFWinRegistryKey(FakePyREGFKey())
+        self.assertFalse(registry_key.is_corrupted)
+
+        registry_key = regf.REGFWinRegistryKey(FakePyREGFKey(corrupted=False))
+        self.assertFalse(registry_key.is_corrupted)
+
+        registry_key = regf.REGFWinRegistryKey(FakePyREGFKey(corrupted=True))
+        self.assertTrue(registry_key.is_corrupted)
 
     def testGetSubkeyByIndex(self):
         """Tests the GetSubkeyByIndex function."""
@@ -764,6 +805,17 @@ class REGFWinRegistryValueTest(test_lib.BaseTestCase):
 
             finally:
                 registry_file.Close()
+
+    def testIsCorrupted(self):
+        """Tests the is_corrupted property."""
+        registry_value = regf.REGFWinRegistryValue(FakePyREGFValue())
+        self.assertFalse(registry_value.is_corrupted)
+
+        registry_value = regf.REGFWinRegistryValue(FakePyREGFValue(corrupted=False))
+        self.assertFalse(registry_value.is_corrupted)
+
+        registry_value = regf.REGFWinRegistryValue(FakePyREGFValue(corrupted=True))
+        self.assertTrue(registry_value.is_corrupted)
 
     def testGetDataAsObject(self):
         """Tests the GetDataAsObject function."""

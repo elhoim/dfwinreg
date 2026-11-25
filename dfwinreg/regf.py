@@ -28,6 +28,12 @@ class REGFWinRegistryFile(interface.WinRegistryFile):
         self._regf_file = pyregf.file()
         self._regf_file.set_ascii_codepage(ascii_codepage)
 
+    @property
+    def is_corrupted(self):
+        """bool: True if the Windows Registry file is corrupted."""
+        # Older versions of pyregf do not support the corrupted attribute.
+        return bool(getattr(self._regf_file, "corrupted", False))
+
     def _GetCurrentControlSetKey(self):
         """Retrieves the current control set key.
 
@@ -189,6 +195,12 @@ class REGFWinRegistryKey(interface.WinRegistryKey):
     def class_name(self):
         """str: class name of the key or None if not available."""
         return self._pyregf_key.class_name
+
+    @property
+    def is_corrupted(self):
+        """bool: True if the Windows Registry key is corrupted."""
+        # Older versions of pyregf do not support the corrupted attribute.
+        return bool(getattr(self._pyregf_key, "corrupted", False))
 
     @property
     def last_written_time(self):
@@ -676,6 +688,12 @@ class REGFWinRegistryValue(interface.WinRegistryValue):
     def data_type(self):
         """int: data type."""
         return self._pyregf_value.type
+
+    @property
+    def is_corrupted(self):
+        """bool: True if the Windows Registry value is corrupted."""
+        # Older versions of pyregf do not support the corrupted attribute.
+        return bool(getattr(self._pyregf_value, "corrupted", False))
 
     @property
     def name(self):
