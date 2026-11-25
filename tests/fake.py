@@ -260,6 +260,44 @@ class FakeWinRegistryKeyTest(test_lib.BaseTestCase):
         with self.assertRaises(KeyError):
             registry_key.AddValue(registry_value)
 
+    def testAddValueWithDefaultValue(self):
+        """Tests the AddValue function with a default value."""
+        registry_key = fake.FakeWinRegistryKey(
+            "Software",
+            key_path_prefix=self._KEY_PATH_PREFIX,
+            last_written_time=0,
+            relative_key_path="",
+        )
+
+        # Note that the name of the default (or nameless) value in a REGF file is
+        # None.
+        registry_value = fake.FakeWinRegistryValue(None)
+
+        registry_key.AddValue(registry_value)
+        self.assertEqual(registry_key.number_of_values, 1)
+
+        registry_value = registry_key.GetValueByName("")
+        self.assertIsNotNone(registry_value)
+        self.assertIsNone(registry_value.name)
+
+        # An empty name also refers to the default value.
+        with self.assertRaises(KeyError):
+            registry_key.AddValue(fake.FakeWinRegistryValue(""))
+
+        with self.assertRaises(KeyError):
+            registry_key.AddValue(fake.FakeWinRegistryValue(None))
+
+        # Test with the default value passed to the constructor.
+        registry_key = fake.FakeWinRegistryKey(
+            "Software",
+            values=[fake.FakeWinRegistryValue(None), fake.FakeWinRegistryValue("")],
+        )
+        self.assertEqual(registry_key.number_of_values, 1)
+
+        registry_value = registry_key.GetValueByName("")
+        self.assertIsNotNone(registry_value)
+        self.assertIsNone(registry_value.name)
+
     def testGetSubkeyByIndex(self):
         """Tests the GetSubkeyByIndex function."""
         registry_key = self._CreateTestKey()
