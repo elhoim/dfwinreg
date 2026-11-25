@@ -15,7 +15,9 @@ from dfwinreg import key_paths
 class FindSpec:
     """Find specification."""
 
-    def __init__(self, key_path=None, key_path_glob=None, key_path_regex=None):
+    def __init__(
+        self, key_path=None, key_path_glob=None, key_path_regex=None, value_name=None
+    ):
         """Initializes a find specification.
 
         Args:
@@ -34,10 +36,13 @@ class FindSpec:
               relative to the root of the Windows Registry. The default is None.
               Note that the string will be split into segments based on the key
               path segment separator.
+          value_name (Optional[str]): name of a value the key must contain, where
+              None indicates no preference and an empty string represents the
+              default (or nameless) value. The name is matched case insensitive.
 
         Raises:
-          TypeError: if the key_path, key_path_glob or key_path_regex type
-              is not supported.
+          TypeError: if the key_path, key_path_glob, key_path_regex or value_name
+              type is not supported.
           ValueError: if the key_path, key_path_glob or key_path_regex arguments
               are used at the same time.
         """
@@ -55,10 +60,15 @@ class FindSpec:
                 )
             )
 
+        if value_name is not None and not isinstance(value_name, str):
+            value_name_type = type(value_name)
+            raise TypeError(f"Unsupported value_name type: {value_name_type!s}.")
+
         super().__init__()
         self._is_regex = False
         self._key_path_segments = None
         self._number_of_key_path_segments = 0
+        self._value_name = value_name
 
         if key_path is not None:
             if isinstance(key_path, str):
@@ -296,6 +306,22 @@ class FindSpec:
         key_name = registry_key.path.rsplit("\\", maxsplit=1)[-1]
         return self._CompareWithKeyPathSegment(key_name, segment_index)
 
+    def CompareValueName(self, registry_key):
+        """Compares the values of a Windows Registry key against the find specification.
+
+        Args:
+          registry_key (WinRegistryKey): Windows Registry key.
+
+        Returns:
+          bool: True if the find specification has no value name defined or if
+              the Windows Registry key contains a value with that name, False if
+              not.
+        """
+        if self._value_name is None:
+            return True
+
+        return registry_key.GetValueByName(self._value_name) is not None
+
     def HasKeyPath(self):
         """Determines if the find specification has a key path defined.
 
@@ -394,7 +420,8 @@ class WinRegistrySearcher:
 
             if not has_key_path or (key_path_match and is_last_key_path_segment):
                 # TODO: add support for CompareTraits.
-                yield registry_key.path
+                if find_spec.CompareValueName(registry_key):
+                    yield registry_key.path
 
             at_last_key_path_segment = find_spec.AtLastKeyPathSegment(segment_index)
             if (not has_key_path or key_path_match) and not at_last_key_path_segment:
