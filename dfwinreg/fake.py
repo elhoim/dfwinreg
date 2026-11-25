@@ -216,7 +216,8 @@ class FakeWinRegistryKey(interface.WinRegistryKey):
 
         if values:
             for registry_value in values:
-                name = registry_value.name.upper()
+                # Note that the default (or nameless) value can be named None.
+                name = (registry_value.name or "").upper()
                 if name in self._values:
                     continue
                 self._values[name] = registry_value
@@ -252,9 +253,10 @@ class FakeWinRegistryKey(interface.WinRegistryKey):
         Raises:
           KeyError: if the value already exists.
         """
-        name = registry_value.name.upper()
+        # Note that the default (or nameless) value can be named None.
+        name = (registry_value.name or "").upper()
         if name in self._values:
-            raise KeyError(f"Value: {registry_value.name:s} already exists.")
+            raise KeyError(f"Value: {registry_value.name!s} already exists.")
 
         self._values[name] = registry_value
 
@@ -355,7 +357,8 @@ class FakeWinRegistryValue(interface.WinRegistryValue):
         """Initializes a Windows Registry value.
 
         Args:
-          name (str): name of the Windows Registry value.
+          name (str): name of the Windows Registry value, where an empty string or
+              None represents the default (or nameless) value.
           data (Optional[bytes]): value data.
           data_type (Optional[int]): value data type.
           offset (Optional[int]): offset of the value within the Windows Registry
