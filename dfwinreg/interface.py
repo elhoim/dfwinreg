@@ -22,6 +22,11 @@ class WinRegistryFile:
         self._key_path_prefix_length = len(key_path_prefix)
         self._key_path_prefix_upper = key_path_prefix.upper()
 
+    @property
+    def is_corrupted(self):
+        """bool: True if the Windows Registry file is corrupted."""
+        return False
+
     @abc.abstractmethod
     def Close(self):
         """Closes the Windows Registry file."""
@@ -116,6 +121,11 @@ class WinRegistryKey:
     @abc.abstractmethod
     def class_name(self):
         """str: class name of the key or None if not available."""
+
+    @property
+    def is_corrupted(self):
+        """bool: True if the Windows Registry key is corrupted."""
+        return False
 
     @property
     @abc.abstractmethod
@@ -261,6 +271,11 @@ class WinRegistryValue:
     def data_type_string(self):
         """str: string representation of the data type."""
         return self._DATA_TYPE_STRINGS.get(self.data_type, "UNKNOWN")
+
+    @property
+    def is_corrupted(self):
+        """bool: True if the Windows Registry value is corrupted."""
+        return False
 
     @property
     @abc.abstractmethod

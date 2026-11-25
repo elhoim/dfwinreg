@@ -56,6 +56,7 @@ class FakeWinRegistryFileTest(FakeWinRegTestCase):
     def testOpenClose(self):
         """Tests the Open and Close functions."""
         registry_file = self._OpenFakeRegistryFile()
+        self.assertFalse(registry_file.is_corrupted)
         registry_file.Close()
 
     def testGetKeyByPath(self):
@@ -179,6 +180,7 @@ class FakeWinRegistryKeyTest(test_lib.BaseTestCase):
 
         self.assertEqual(registry_key.number_of_subkeys, 1)
         self.assertEqual(registry_key.number_of_values, 1)
+        self.assertFalse(registry_key.is_corrupted)
         self.assertIsNone(registry_key.offset)
 
         registry_key._last_written_time = None
@@ -339,6 +341,7 @@ class FakeWinRegistryValueTest(test_lib.BaseTestCase):
 
         self.assertEqual(registry_value.data, b"")
         self.assertEqual(registry_value.data_type, definitions.REG_BINARY)
+        self.assertFalse(registry_value.is_corrupted)
         self.assertEqual(registry_value.name, "MRUListEx")
         self.assertEqual(registry_value.offset, 0)
 
