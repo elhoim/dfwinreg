@@ -244,6 +244,31 @@ class RegistryTest(test_lib.BaseTestCase):
         )
         self.assertIsNone(registry_key)
 
+    def testGetClassesRootVirtualKey(self):
+        """Tests the _GetClassesRootVirtualKey function."""
+        win_registry = registry.WinRegistry()
+
+        registry_key = win_registry._GetClassesRootVirtualKey("\\.txt")
+        self.assertIsNone(registry_key)
+
+        win_registry = registry.WinRegistry(
+            registry_file_reader=TestREGFWinRegistryFileReaderMapped()
+        )
+
+        registry_key = win_registry._GetClassesRootVirtualKey("\\")
+        self.assertIsNotNone(registry_key)
+        self.assertEqual(registry_key.name, "HKEY_CLASSES_ROOT")
+
+        registry_key = win_registry._GetClassesRootVirtualKey("\\.txt")
+        self.assertIsNotNone(registry_key)
+        self.assertEqual(registry_key.name, ".txt")
+        self.assertEqual(
+            registry_key.path, "HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\.txt"
+        )
+
+        registry_key = win_registry._GetClassesRootVirtualKey("\\Bogus")
+        self.assertIsNone(registry_key)
+
     def testGetUsersVirtualKey(self):
         """Tests the _GetUsersVirtualKey function."""
         ntuser_test_path = self._GetTestFilePath(["NTUSER.DAT"])
@@ -468,6 +493,41 @@ class RegistryTest(test_lib.BaseTestCase):
         with self.assertRaises(RuntimeError):
             win_registry.GetKeyByPath("HKEY_LOCAL_MACHINE\\System\\ControlSet001")
 
+    def testGetKeyByPathOnClassesRoot(self):
+        """Tests the GetKeyByPath function on HKEY_CLASSES_ROOT."""
+        win_registry = registry.WinRegistry(
+            registry_file_reader=TestREGFWinRegistryFileReaderMapped()
+        )
+
+        registry_key = win_registry.GetKeyByPath("HKEY_CLASSES_ROOT")
+        self.assertIsNotNone(registry_key)
+        self.assertEqual(registry_key.name, "HKEY_CLASSES_ROOT")
+        self.assertEqual(registry_key.number_of_subkeys, 3329)
+
+        registry_key = win_registry.GetKeyByPath("HKEY_CLASSES_ROOT\\.txt")
+        self.assertIsNotNone(registry_key)
+        self.assertEqual(
+            registry_key.path, "HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\.txt"
+        )
+
+        registry_value = registry_key.GetValueByName("PerceivedType")
+        self.assertIsNotNone(registry_value)
+
+        # Test the HKCR root key alias.
+        registry_key = win_registry.GetKeyByPath("HKCR\\.txt")
+        self.assertIsNotNone(registry_key)
+        self.assertEqual(registry_key.name, ".txt")
+
+        # Test a non-existing key.
+        registry_key = win_registry.GetKeyByPath("HKEY_CLASSES_ROOT\\Bogus")
+        self.assertIsNone(registry_key)
+
+        # Test without a SOFTWARE Windows Registry file.
+        win_registry = registry.WinRegistry()
+
+        registry_key = win_registry.GetKeyByPath("HKEY_CLASSES_ROOT\\.txt")
+        self.assertIsNone(registry_key)
+
     def testGetRegistryFileMappingOnNTUserDat(self):
         """Tests the GetRegistryFileMapping function on a NTUSER.DAT file."""
         dat_test_path = self._GetTestFilePath(["NTUSER.DAT"])
@@ -546,6 +606,24 @@ class RegistryTest(test_lib.BaseTestCase):
 
         subkey_names = sorted([subkey.name for subkey in root_key.GetSubkeys()])
         self.assertEqual(subkey_names, expected_subkey_names)
+
+    def testGetRootKeyWithClassesRoot(self):
+        """Tests the GetRootKey function with HKEY_CLASSES_ROOT."""
+        win_registry = registry.WinRegistry(
+            registry_file_reader=TestREGFWinRegistryFileReaderMapped()
+        )
+
+        root_key = win_registry.GetRootKey()
+        self.assertIsNotNone(root_key)
+
+        classes_root_key = root_key.GetSubkeyByName("HKEY_CLASSES_ROOT")
+        self.assertIsNotNone(classes_root_key)
+        self.assertEqual(classes_root_key.name, "HKEY_CLASSES_ROOT")
+        self.assertEqual(classes_root_key.path, "HKEY_CLASSES_ROOT")
+
+        registry_key = classes_root_key.GetSubkeyByName(".txt")
+        self.assertIsNotNone(registry_key)
+        self.assertEqual(registry_key.path, "HKEY_CLASSES_ROOT\\.txt")
 
     def testMapFile(self):
         """Tests the MapFile function."""
