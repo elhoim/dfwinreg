@@ -60,6 +60,14 @@ class FindSpecTest(test_lib.BaseTestCase):
         with self.assertRaises(TypeError):
             registry_searcher.FindSpec(key_path_regex=("bogus", 0))
 
+        find_spec = registry_searcher.FindSpec(
+            key_path="HKEY_CURRENT_USER\\Software\\Microsoft", value_name="Test"
+        )
+        self.assertIsNotNone(find_spec)
+
+        with self.assertRaises(TypeError):
+            registry_searcher.FindSpec(value_name=0)
+
         with self.assertRaises(ValueError):
             registry_searcher.FindSpec(
                 key_path="HKEY_CURRENT_USER\\Software\\Microsoft",
@@ -234,6 +242,35 @@ class FindSpecTest(test_lib.BaseTestCase):
         result = find_spec.CompareNameWithKeyPathSegment(registry_key, 2)
         self.assertFalse(result)
 
+    def testCompareValueName(self):
+        """Test the CompareValueName function."""
+        registry_key = fake.FakeWinRegistryKey(
+            "Microsoft",
+            key_path_prefix="HKEY_CURRENT_USER\\Software",
+            relative_key_path="Microsoft",
+            values=[fake.FakeWinRegistryValue("Test")],
+        )
+
+        find_spec = registry_searcher.FindSpec()
+
+        result = find_spec.CompareValueName(registry_key)
+        self.assertTrue(result)
+
+        find_spec = registry_searcher.FindSpec(value_name="TEST")
+
+        result = find_spec.CompareValueName(registry_key)
+        self.assertTrue(result)
+
+        find_spec = registry_searcher.FindSpec(value_name="Bogus")
+
+        result = find_spec.CompareValueName(registry_key)
+        self.assertFalse(result)
+
+        find_spec = registry_searcher.FindSpec(value_name="")
+
+        result = find_spec.CompareValueName(registry_key)
+        self.assertFalse(result)
+
     def testHasKeyPath(self):
         """Test the HasKeyPath function."""
         find_spec = registry_searcher.FindSpec()
@@ -365,6 +402,30 @@ class WinRegistrySearcherTest(test_lib.BaseTestCase):
             "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Policies",
             "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Services",
         ]
+        key_paths = list(searcher.Find(find_specs=[find_spec]))
+        self.assertEqual(key_paths, expected_key_paths)
+
+        # Test with key path glob and value name.
+        find_spec = registry_searcher.FindSpec(
+            key_path_glob="HKEY_LOCAL_MACHINE\\System\\*", value_name="Current"
+        )
+
+        expected_key_paths = ["HKEY_LOCAL_MACHINE\\System\\Select"]
+        key_paths = list(searcher.Find(find_specs=[find_spec]))
+        self.assertEqual(key_paths, expected_key_paths)
+
+        # Test with key path and non-existing value name.
+        find_spec = registry_searcher.FindSpec(
+            key_path="HKEY_LOCAL_MACHINE\\System\\Select", value_name="Bogus"
+        )
+
+        key_paths = list(searcher.Find(find_specs=[find_spec]))
+        self.assertEqual(key_paths, [])
+
+        # Test with value name only.
+        find_spec = registry_searcher.FindSpec(value_name="LastKnownGood")
+
+        expected_key_paths = ["HKEY_LOCAL_MACHINE\\System\\Select"]
         key_paths = list(searcher.Find(find_specs=[find_spec]))
         self.assertEqual(key_paths, expected_key_paths)
 
