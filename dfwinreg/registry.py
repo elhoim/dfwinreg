@@ -124,6 +124,8 @@ class WinRegistry:
         ]
     )
 
+    _LOCAL_MACHINE_SOFTWARE_CLASSES_KEY_PATH = "HKEY_LOCAL_MACHINE\\Software\\Classes"
+
     _LOCAL_MACHINE_SUB_KEYS = frozenset(["SAM", "Security", "Software", "System"])
 
     _SELECT_KEY_PATH = "HKEY_LOCAL_MACHINE\\System\\Select"
@@ -135,12 +137,14 @@ class WinRegistry:
 
     _USER_SOFTWARE_CLASSES_KEY_PATH = "HKEY_CURRENT_USER\\SOFTWARE\\CLASSES"
 
-    # TODO: add support for HKEY_CLASSES_ROOT
     # TODO: add support for HKEY_CURRENT_CONFIG
     # TODO: add support for HKEY_CURRENT_USER
     # TODO: add support for HKEY_DYN_DATA
 
-    _VIRTUAL_KEYS = [("HKEY_USERS", "_GetUsersVirtualKey")]
+    _VIRTUAL_KEYS = [
+        ("HKEY_CLASSES_ROOT", "_GetClassesRootVirtualKey"),
+        ("HKEY_USERS", "_GetUsersVirtualKey"),
+    ]
 
     def __init__(self, ascii_codepage="cp1252", registry_file_reader=None):
         """Initializes the Windows Registry.
@@ -229,6 +233,41 @@ class WinRegistry:
                 candidate_mappings.append(mapping)
 
         return candidate_mappings
+
+    def _GetClassesRootVirtualKey(self, key_path_suffix):
+        """Virtual key callback to determine the classes root sub keys.
+
+        HKEY_CLASSES_ROOT is mapped directly onto
+        HKEY_LOCAL_MACHINE\\Software\\Classes. Note that on Windows
+        HKEY_CLASSES_ROOT is a merged view that also contains
+        HKEY_CURRENT_USER\\Software\\Classes, which is currently not supported.
+
+        Args:
+          key_path_suffix (str): classes root Windows Registry key path suffix with
+              leading path separator.
+
+        Returns:
+          WinRegistryKey: the classes root Windows Registry key or None if not
+              available.
+        """
+        relative_key_path = key_path_suffix.strip(definitions.KEY_PATH_SEPARATOR)
+        if not relative_key_path:
+            classes_key = self._GetKeyByPathFromFile(
+                self._LOCAL_MACHINE_SOFTWARE_CLASSES_KEY_PATH
+            )
+            if not classes_key:
+                return None
+
+            return virtual.VirtualWinRegistryKey(
+                "HKEY_CLASSES_ROOT",
+                registry=self,
+                relative_key_path=self._LOCAL_MACHINE_SOFTWARE_CLASSES_KEY_PATH,
+            )
+
+        key_path = definitions.KEY_PATH_SEPARATOR.join(
+            [self._LOCAL_MACHINE_SOFTWARE_CLASSES_KEY_PATH, relative_key_path]
+        )
+        return self._GetKeyByPathFromFile(key_path)
 
     def _GetFileByPath(self, key_path_upper):
         """Retrieves a Windows Registry file for a specific path.
