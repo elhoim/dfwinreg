@@ -36,6 +36,24 @@ class FakePyREGFKey:
         return None
 
 
+class TestREGFWinRegistryFileWithCurrentControlSet(regf.REGFWinRegistryFile):
+    """REGF Windows Registry file that contains a CurrentControlSet key."""
+
+    def _GetKeyByPathFromFile(self, relative_key_path):
+        """Retrieves the key for a specific path form the Windows Registry file.
+
+        Args:
+          relative_key_path (str): Windows Registry key path relative to the file.
+
+        Returns:
+          pyregf.key: Windows Registry key or None if not available.
+        """
+        if relative_key_path.lstrip("\\").upper() == "CURRENTCONTROLSET":
+            relative_key_path = "\\ControlSet001"
+
+        return super()._GetKeyByPathFromFile(relative_key_path)
+
+
 class FakePyREGFValue:
     """Fake pyregf value for testing.
 
@@ -89,6 +107,30 @@ class REGFWinRegistryFileTest(test_lib.BaseTestCase):
 
                 registry_key = registry_file.GetKeyByPath("\\CurrentControlSet")
                 self.assertIsNotNone(registry_key)
+
+            finally:
+                registry_file.Close()
+
+    def testAddCurrentControlSetKeyWithCurrentControlSet(self):
+        """Tests the AddCurrentControlSetKey function with a CurrentControlSet key."""
+        test_path = self._GetTestFilePath(["SYSTEM"])
+        self._SkipIfPathNotExists(test_path)
+
+        registry_file = TestREGFWinRegistryFileWithCurrentControlSet()
+
+        with open(test_path, "rb") as file_object:
+            registry_file.Open(file_object)
+
+            try:
+                registry_file.AddCurrentControlSetKey()
+                self.assertFalse(registry_file._emulate_virtual_keys)
+
+                registry_key = registry_file.GetKeyByPath("\\CurrentControlSet")
+                self.assertIsNotNone(registry_key)
+                self.assertNotIsInstance(registry_key, regf.VirtualREGFWinRegistryKey)
+
+                registry_key = registry_file.GetRootKey()
+                self.assertNotIsInstance(registry_key, regf.VirtualREGFWinRegistryKey)
 
             finally:
                 registry_file.Close()

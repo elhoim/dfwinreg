@@ -75,9 +75,15 @@ class REGFWinRegistryFile(interface.WinRegistryFile):
     def AddCurrentControlSetKey(self):
         """Adds a virtual current control set key.
 
+        The virtual key is not added if the Windows Registry file already contains
+        a CurrentControlSet key, so that the key stored in the file is not shadowed.
+
         Raises:
           ValueError: if the virtual key already exists.
         """
+        if self._GetKeyByPathFromFile("\\CurrentControlSet"):
+            return
+
         pyregf_key = self._GetCurrentControlSetKey()
         if pyregf_key:
             self._key_helper.AddVirtualKey("\\CurrentControlSet", pyregf_key)
